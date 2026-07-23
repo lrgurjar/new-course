@@ -5,7 +5,7 @@ function Row({ index, style }) {
     return <div style={style}>Item {index}</div>;
 }
 
-export default function Virtulation() {
+export default function Virtualization() {
     return (
         <List
             rowComponent={Row}
