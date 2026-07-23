@@ -1,38 +1,36 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import {
-    addTodo,
-    removeTodo,
-    editTodo,
-    toggleTodo,
-    clearCompleted,
+    fetchTodos,
+    addTodoAsync,
+    editTodoAsync,
+    toggleTodoAsync,
+    removeTodoAsync,
+    clearCompletedAsync,
 } from '../../store/todoSlice';
 
-function TodoList() {
+function ToDoList() {
     const [input, setInput] = useState('');
     const [editId, setEditId] = useState(null);
     const [editText, setEditText] = useState('');
 
     const dispatch = useDispatch();
-    const todoList = useSelector((state) => state.todos.list);
+    const { list: todoList, status, error } = useSelector((state) => state.todos);
+
+    useEffect(() => {
+        dispatch(fetchTodos());
+    }, [dispatch]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
         if (!input.trim()) return;
 
-        dispatch(
-            addTodo({
-                id: Date.now(),
-                text: input,
-                completed: false,
-            })
-        );
-
+        dispatch(addTodoAsync(input));
         setInput('');
     };
 
     const handleRemove = (id) => {
-        dispatch(removeTodo(id));
+        dispatch(removeTodoAsync(id));
     };
 
     const handleEditClick = (todo) => {
@@ -43,7 +41,7 @@ function TodoList() {
     const handleUpdate = (id) => {
         if (!editText.trim()) return;
 
-        dispatch(editTodo({ id, text: editText }));
+        dispatch(editTodoAsync({ id, text: editText }));
         setEditId(null);
         setEditText('');
     };
@@ -53,25 +51,26 @@ function TodoList() {
         setEditText('');
     };
 
-    const handleToggle = (id) => {
-        dispatch(toggleTodo(id));
+    const handleToggle = (todo) => {
+        dispatch(toggleTodoAsync({ id: todo.id, completed: todo.completed }));
     };
 
     const handleClearCompleted = () => {
-        dispatch(clearCompleted());
+        dispatch(clearCompletedAsync());
     };
 
     const completedCount = todoList.filter((todo) => todo.completed).length;
 
     return (
         <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
-            <h1>Redux Toolkit App with Middleware</h1>
+            <h1>Redux Toolkit App with Axios API</h1>
 
             <form onSubmit={handleSubmit} style={{ marginBottom: '20px' }}>
                 <input
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     placeholder="Enter a task..."
+                    disabled={status === 'loading'}
                 />
                 <button type="submit" style={{ marginLeft: '10px' }}>
                     Add Todo
@@ -87,7 +86,8 @@ function TodoList() {
                 </span>
             </div>
 
-            <h3>Tasks Array:</h3>
+            {status === 'loading' && <p>Loading todos...</p>}
+            {error && <p style={{ color: 'red' }}>{error}</p>}
 
             <ul style={{ paddingLeft: '20px' }}>
                 {todoList.map((todo) => (
@@ -122,7 +122,7 @@ function TodoList() {
                                     {todo.text}
                                 </span>
 
-                                <button onClick={() => handleToggle(todo.id)}>
+                                <button onClick={() => handleToggle(todo)}>
                                     {todo.completed ? 'Undo' : 'Complete'}
                                 </button>
 
@@ -148,4 +148,4 @@ function TodoList() {
     );
 }
 
-export default TodoList;
+export default ToDoList;
