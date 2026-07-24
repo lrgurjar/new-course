@@ -1,36 +1,36 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import {
-    fetchTodos,
-    addTodoAsync,
-    editTodoAsync,
-    toggleTodoAsync,
-    removeTodoAsync,
-    clearCompletedAsync,
+    fetchTodosRequest,
+    addTodoRequest,
+    editTodoRequest,
+    toggleTodoRequest,
+    removeTodoRequest,
+    clearCompletedRequest,
 } from '../../store/todoSlice';
 
+
 function ToDoList() {
+    const dispatch = useDispatch();
+    const { list: todoList, status, error } = useSelector((state) => state.todos);
+
     const [input, setInput] = useState('');
     const [editId, setEditId] = useState(null);
     const [editText, setEditText] = useState('');
 
-    const dispatch = useDispatch();
-    const { list: todoList, status, error } = useSelector((state) => state.todos);
-
     useEffect(() => {
-        dispatch(fetchTodos());
+        dispatch(fetchTodosRequest());
     }, [dispatch]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
         if (!input.trim()) return;
-
-        dispatch(addTodoAsync(input));
+        dispatch(addTodoRequest(input));
         setInput('');
     };
 
     const handleRemove = (id) => {
-        dispatch(removeTodoAsync(id));
+        dispatch(removeTodoRequest(id));
     };
 
     const handleEditClick = (todo) => {
@@ -40,8 +40,7 @@ function ToDoList() {
 
     const handleUpdate = (id) => {
         if (!editText.trim()) return;
-
-        dispatch(editTodoAsync({ id, text: editText }));
+        dispatch(editTodoRequest({ id, text: editText }));
         setEditId(null);
         setEditText('');
     };
@@ -52,41 +51,40 @@ function ToDoList() {
     };
 
     const handleToggle = (todo) => {
-        dispatch(toggleTodoAsync({ id: todo.id, completed: todo.completed }));
+        dispatch(toggleTodoRequest({ id: todo.id, completed: todo.completed }));
     };
 
     const handleClearCompleted = () => {
-        dispatch(clearCompletedAsync());
+        dispatch(clearCompletedRequest());
     };
 
-    const completedCount = todoList.filter((todo) => todo.completed).length;
+    const completedCount = todoList.filter((t) => t.completed).length;
+    const isLoading = status === 'loading';
 
     return (
         <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
-            <h1>Redux Toolkit App with Axios API</h1>
+            <h1>Redux Toolkit + Redux-Saga (JSONPlaceholder)</h1>
 
             <form onSubmit={handleSubmit} style={{ marginBottom: '20px' }}>
                 <input
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     placeholder="Enter a task..."
-                    disabled={status === 'loading'}
+                    disabled={isLoading}
                 />
-                <button type="submit" style={{ marginLeft: '10px' }}>
+                <button type="submit" style={{ marginLeft: '10px' }} disabled={isLoading}>
                     Add Todo
                 </button>
             </form>
 
             <div style={{ marginBottom: '20px' }}>
-                <button onClick={handleClearCompleted} disabled={completedCount === 0}>
+                <button onClick={handleClearCompleted} disabled={completedCount === 0 || isLoading}>
                     Clear Completed
                 </button>
-                <span style={{ marginLeft: '10px' }}>
-                    Completed: {completedCount}
-                </span>
+                <span style={{ marginLeft: '10px' }}>Completed: {completedCount}</span>
             </div>
 
-            {status === 'loading' && <p>Loading todos...</p>}
+            {isLoading && <p>Loading...</p>}
             {error && <p style={{ color: 'red' }}>{error}</p>}
 
             <ul style={{ paddingLeft: '20px' }}>

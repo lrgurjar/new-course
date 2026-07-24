@@ -1,165 +1,125 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios';
+import { createSlice } from '@reduxjs/toolkit';
 
-const BASE_URL = 'https://jsonplaceholder.typicode.com/todos';
-
-const mapApiTodo = (todo) => ({
-    id: todo.id,
-    text: todo.title,
-    completed: Boolean(todo.completed),
-});
-
-export const fetchTodos = createAsyncThunk('todo/fetchTodos', async () => {
-    const response = await axios.get(`${BASE_URL}?_limit=10`);
-    return response.data.map(mapApiTodo);
-});
-
-export const addTodoAsync = createAsyncThunk(
-    'todo/addTodo',
-    async (text, thunkAPI) => {
-        const response = await axios.post(BASE_URL, {
-            userId: 1,
-            title: text,
-            completed: false,
-        });
-
-        let newTodo = mapApiTodo(response.data);
-
-        const state = thunkAPI.getState();
-        const existingIds = new Set(
-            (state.todos?.list ?? []).map((todo) => todo.id)
-        );
-
-        if (!newTodo.id || existingIds.has(newTodo.id)) {
-            newTodo = {
-                ...newTodo,
-                id: Date.now(),
-            };
-        }
-
-        return newTodo;
-    }
-);
-
-export const editTodoAsync = createAsyncThunk(
-    'todo/editTodo',
-    async ({ id, text }) => {
-        const response = await axios.patch(`${BASE_URL}/${id}`, {
-            title: text,
-        });
-
-        return {
-            id,
-            text: response.data.title ?? text,
-        };
-    }
-);
-
-export const toggleTodoAsync = createAsyncThunk(
-    'todo/toggleTodo',
-    async ({ id, completed }) => {
-        const response = await axios.patch(`${BASE_URL}/${id}`, {
-            completed: !completed,
-        });
-
-        return {
-            id,
-            completed: response.data.completed ?? !completed,
-        };
-    }
-);
-
-export const removeTodoAsync = createAsyncThunk(
-    'todo/removeTodo',
-    async (id) => {
-        await axios.delete(`${BASE_URL}/${id}`);
-        return id;
-    }
-);
-
-export const clearCompletedAsync = createAsyncThunk(
-    'todo/clearCompleted',
-    async (_, thunkAPI) => {
-        const state = thunkAPI.getState();
-        const completedTodos = (state.todos?.list ?? []).filter(
-            (todo) => todo.completed
-        );
-
-        await Promise.all(
-            completedTodos.map((todo) => axios.delete(`${BASE_URL}/${todo.id}`))
-        );
-
-        return completedTodos.map((todo) => todo.id);
-    }
-);
+const initialState = {
+    list: [],
+    status: 'idle', // idle | loading | succeeded | failed
+    error: null,
+};
 
 const todoSlice = createSlice({
     name: 'todo',
-    initialState: {
-        list: [],
-        status: 'idle',
-        error: null,
-    },
-    reducers: {},
-    extraReducers: (builder) => {
-        builder
-            .addCase(fetchTodos.pending, (state) => {
-                state.status = 'loading';
-                state.error = null;
-            })
-            .addCase(fetchTodos.fulfilled, (state, action) => {
-                state.status = 'succeeded';
-                state.list = action.payload;
-            })
-            .addCase(fetchTodos.rejected, (state, action) => {
-                state.status = 'failed';
-                state.error = action.error.message;
-            })
+    initialState,
+    reducers: {
+        // Fetch
+        fetchTodosRequest(state) {
+            state.status = 'loading';
+            state.error = null;
+        },
+        fetchTodosSuccess(state, action) {
+            state.status = 'succeeded';
+            state.list = action.payload;
+        },
+        fetchTodosFailure(state, action) {
+            state.status = 'failed';
+            state.error = action.payload || 'Failed to load todos';
+        },
 
-            .addCase(addTodoAsync.fulfilled, (state, action) => {
-                state.list.push(action.payload);
-            })
-            .addCase(addTodoAsync.rejected, (state, action) => {
-                state.error = action.error.message;
-            })
+        // Add
+        addTodoRequest(state) {
+            state.status = 'loading';
+            state.error = null;
+        },
+        addTodoSuccess(state, action) {
+            state.status = 'succeeded';
+            state.list.push(action.payload);
+        },
+        addTodoFailure(state, action) {
+            state.status = 'failed';
+            state.error = action.payload || 'Failed to add todo';
+        },
 
-            .addCase(editTodoAsync.fulfilled, (state, action) => {
-                const { id, text } = action.payload;
-                const todo = state.list.find((todo) => todo.id === id);
-                if (todo) {
-                    todo.text = text;
-                }
-            })
-            .addCase(editTodoAsync.rejected, (state, action) => {
-                state.error = action.error.message;
-            })
+        // Edit
+        editTodoRequest(state) {
+            state.status = 'loading';
+            state.error = null;
+        },
+        editTodoSuccess(state, action) {
+            state.status = 'succeeded';
+            const { id, text } = action.payload;
+            const item = state.list.find((t) => t.id === id);
+            if (item) item.text = text;
+        },
+        editTodoFailure(state, action) {
+            state.status = 'failed';
+            state.error = action.payload || 'Failed to edit todo';
+        },
 
-            .addCase(toggleTodoAsync.fulfilled, (state, action) => {
-                const { id, completed } = action.payload;
-                const todo = state.list.find((todo) => todo.id === id);
-                if (todo) {
-                    todo.completed = completed;
-                }
-            })
-            .addCase(toggleTodoAsync.rejected, (state, action) => {
-                state.error = action.error.message;
-            })
+        // Toggle
+        toggleTodoRequest(state) {
+            state.status = 'loading';
+            state.error = null;
+        },
+        toggleTodoSuccess(state, action) {
+            state.status = 'succeeded';
+            const { id, completed } = action.payload;
+            const item = state.list.find((t) => t.id === id);
+            if (item) item.completed = completed;
+        },
+        toggleTodoFailure(state, action) {
+            state.status = 'failed';
+            state.error = action.payload || 'Failed to toggle todo';
+        },
 
-            .addCase(removeTodoAsync.fulfilled, (state, action) => {
-                state.list = state.list.filter((todo) => todo.id !== action.payload);
-            })
-            .addCase(removeTodoAsync.rejected, (state, action) => {
-                state.error = action.error.message;
-            })
+        // Remove
+        removeTodoRequest(state) {
+            state.status = 'loading';
+            state.error = null;
+        },
+        removeTodoSuccess(state, action) {
+            state.status = 'succeeded';
+            state.list = state.list.filter((t) => t.id !== action.payload);
+        },
+        removeTodoFailure(state, action) {
+            state.status = 'failed';
+            state.error = action.payload || 'Failed to remove todo';
+        },
 
-            .addCase(clearCompletedAsync.fulfilled, (state, action) => {
-                const removedIds = new Set(action.payload);
-                state.list = state.list.filter((todo) => !removedIds.has(todo.id));
-            })
-            .addCase(clearCompletedAsync.rejected, (state, action) => {
-                state.error = action.error.message;
-            });
+        // Clear Completed
+        clearCompletedRequest(state) {
+            state.status = 'loading';
+            state.error = null;
+        },
+        clearCompletedSuccess(state, action) {
+            state.status = 'succeeded';
+            const removedIds = new Set(action.payload);
+            state.list = state.list.filter((t) => !removedIds.has(t.id));
+        },
+        clearCompletedFailure(state, action) {
+            state.status = 'failed';
+            state.error = action.payload || 'Failed to clear completed todos';
+        },
     },
 });
+
+export const {
+    fetchTodosRequest,
+    fetchTodosSuccess,
+    fetchTodosFailure,
+    addTodoRequest,
+    addTodoSuccess,
+    addTodoFailure,
+    editTodoRequest,
+    editTodoSuccess,
+    editTodoFailure,
+    toggleTodoRequest,
+    toggleTodoSuccess,
+    toggleTodoFailure,
+    removeTodoRequest,
+    removeTodoSuccess,
+    removeTodoFailure,
+    clearCompletedRequest,
+    clearCompletedSuccess,
+    clearCompletedFailure,
+} = todoSlice.actions;
 
 export default todoSlice.reducer;
